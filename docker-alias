@@ -1,0 +1,151 @@
+_docker() {
+	local previous_extglob_setting=$(shopt -p extglob)
+	shopt -s extglob
+
+	local management_commands=(
+		container
+		image
+		network
+		node
+		plugin
+		secret
+		service
+		stack
+		system
+		volume
+	)
+
+	local top_level_commands=(
+		build
+		login
+		logout
+		run
+		search
+		version
+	)
+
+	local legacy_commands=(
+		commit
+		cp
+		create
+		diff
+		events
+		exec
+		export
+		history
+		images
+		import
+		info
+		inspect
+		kill
+		load
+		logs
+		pause
+		port
+		ps
+		pull
+		push
+		rename
+		restart
+		rm
+		rmi
+		save
+		start
+		stats
+		stop
+		swarm
+		tag
+		top
+		unpause
+		update
+		wait
+	)
+
+	local experimental_commands=(
+		checkpoint
+		deploy
+	)
+
+	local commands=(${management_commands[*]} ${top_level_commands[*]})
+	[ -z "$DOCKER_HIDE_LEGACY_COMMANDS" ] && commands+=(${legacy_commands[*]})
+
+	# These options are valid as global options for all client commands
+	# and valid as command options for `docker daemon`
+	local global_boolean_options="
+		--debug -D
+		--tls
+		--tlsverify
+	"
+	local global_options_with_args="
+		--config
+		--host -H
+		--log-level -l
+		--tlscacert
+		--tlscert
+		--tlskey
+	"
+
+	local host config
+
+	COMPREPLY=()
+	local cur prev words cword
+	_get_comp_words_by_ref -n : cur prev words cword
+
+	local command='docker' command_pos=0 subcommand_pos
+	local counter=1
+	while [ $counter -lt $cword ]; do
+		case "${words[$counter]}" in
+			# save host so that completion can use custom daemon
+			--host|-H)
+				(( counter++ ))
+				host="${words[$counter]}"
+				;;
+			# save config so that completion can use custom configuration directories
+			--config)
+				(( counter++ ))
+				config="${words[$counter]}"
+				;;
+			$(__docker_to_extglob "$global_options_with_args") )
+				(( counter++ ))
+				;;
+			-*)
+				;;
+			=)
+				(( counter++ ))
+				;;
+			*)
+				command="${words[$counter]}"
+				command_pos=$counter
+				break
+				;;
+		esac
+		(( counter++ ))
+	done
+
+	local binary="${words[0]}"
+	if [[ $binary == ?(*/)dockerd ]] ; then
+		# for the dockerd binary, we reuse completion of `docker daemon`.
+		# dockerd does not have subcommands and global options.
+		command=daemon
+		command_pos=0
+	fi
+
+	local completions_func=_docker_${command}
+	declare -F $completions_func >/dev/null && $completions_func
+
+	eval "$previous_extglob_setting"
+	return 0
+}
+
+_docker_alias() {
+	local cur="${COMP_WORDS[COMP_CWORD]}"
+	local names="$(__docker_containers)"
+	COMPREPLY=( $(compgen -W "${names}" -- ${cur}) )
+    return 0
+}
+
+eval "$__docker_previous_extglob_setting"
+unset __docker_previous_extglob_setting
+
+complete -F _docker docker dockerd
+complete -F _docker_alias dl dr
