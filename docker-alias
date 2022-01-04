@@ -4290,4 +4290,4 @@ eval "$__docker_previous_extglob_setting"
 unset __docker_previous_extglob_setting
 
 complete -F _docker docker dockerd
-complete -F _docker_alias dl dr
+complete -F _docker_alias dl dr dd
